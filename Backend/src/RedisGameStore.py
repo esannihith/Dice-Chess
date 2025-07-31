@@ -7,15 +7,17 @@ class RedisGameStore:
     def __init__(self, redis_url: str = "redis://localhost:6379"):
         self.redis_client = redis.from_url(redis_url, decode_responses=True)
     
-    def create_game(self, game_id: str, creator_id: str, opponent_join_id: str) -> bool:
+    def create_game(self, game_id: str, creator_id: str, creator_name: str, opponent_join_id: str) -> bool:
         """
         Create a new game with creator
         """
         game_data = {
             "gameId": game_id,
             "creatorId": creator_id,  # Creator's playerId
+            "creatorName": creator_name,       # Set when creating game
             "opponentJoinId": opponent_join_id,
             "opponentId": None,  # Will be set when opponent joins
+            "opponentName": None,  # Will be set when opponent joins
             "status": "waiting",
             "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
             "activePlayer": "white",
@@ -47,7 +49,7 @@ class RedisGameStore:
             print(f"Error getting game from Redis: {e}")
             return None
     
-    def join_game(self, opponent_join_id: str, opponent_id: str) -> Optional[Dict[Any, Any]]:
+    def join_game(self, opponent_join_id: str, opponent_id: str, opponent_name: str) -> Optional[Dict[Any, Any]]:
         """
         Opponent joins game using opponentJoinId
         Returns updated game data or None if join failed
@@ -72,7 +74,8 @@ class RedisGameStore:
                 
             # Update game data with opponent
             game_data["opponentId"] = opponent_id
-            game_data["status"] = "active"
+            game_data["opponentName"] = opponent_name
+            # game status will remain "waiting", "game_status_changed" will change status to active and broadcast to all clients
             
             # Save updated game data
             self.redis_client.setex(f"game:{game_id}", 86400, json.dumps(game_data))

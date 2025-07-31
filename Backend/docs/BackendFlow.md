@@ -22,7 +22,9 @@ This document provides a comprehensive guide to the Dice Chess backend flow, fro
 POST /api/game/new
 Content-Type: application/json
 
-{}
+{
+  "playerName": "John Doe"
+}
 ```
 
 **Response**:
@@ -57,11 +59,15 @@ Content-Type: application/json
     "playerId": "creator-uuid-1a2b3c4d-5e6f-7890-abcd-ef1234567890",
     "playerRole": "creator",
     "playerColor": "white",
+    "playerName": "John Doe",
+    "opponentName": null,
     "gameData": {
       "gameId": "f8a1b2c4-e6d7-4321-9876-123456789abc",
       "creatorId": "creator-uuid-1a2b3c4d-5e6f-7890-abcd-ef1234567890",
+      "creatorName": "John Doe",
       "opponentJoinId": "opponent-join-uuid-9z8y7x6w-5v4u-3t2s-1r0q-ponmlkjihgfe",
       "opponentId": null,
+      "opponentName": null,
       "status": "waiting",
       "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
       "activePlayer": "white",
@@ -83,7 +89,8 @@ Content-Type: application/json
 
 {
   "gameId": "f8a1b2c4-e6d7-4321-9876-123456789abc",
-  "opponentJoinId": "opponent-join-uuid-9z8y7x6w-5v4u-3t2s-1r0q-ponmlkjihgfe"
+  "opponentJoinId": "opponent-join-uuid-9z8y7x6w-5v4u-3t2s-1r0q-ponmlkjihgfe",
+  "playerName": "Jane Smith"
 }
 ```
 
@@ -118,11 +125,15 @@ Content-Type: application/json
     "playerId": "opponent-uuid-9x8w7v6u-5t4s-3r2q-1p0o-nmlkjihgfedc",
     "playerRole": "opponent",
     "playerColor": "black",
+    "playerName": "Jane Smith",
+    "opponentName": "John Doe",
     "gameData": {
       "gameId": "f8a1b2c4-e6d7-4321-9876-123456789abc",
       "creatorId": "creator-uuid-1a2b3c4d-5e6f-7890-abcd-ef1234567890",
+      "creatorName": "John Doe",
       "opponentId": "opponent-uuid-9x8w7v6u-5t4s-3r2q-1p0o-nmlkjihgfedc",
-      "status": "active",
+      "opponentName": "Jane Smith",
+      "status": "waiting",
       "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
       "activePlayer": "white",
       "createdAt": 1704067200
@@ -138,11 +149,13 @@ Content-Type: application/json
   "data": {
     "playerId": "opponent-uuid-9x8w7v6u-5t4s-3r2q-1p0o-nmlkjihgfedc",
     "playerRole": "opponent",
+    "playerName": "Jane Smith",
     "gameId": "f8a1b2c4-e6d7-4321-9876-123456789abc",
-    "gameStatus": "active"
+    "gameStatus": "waiting"
   }
 }
 ```
+At this point, the game status remains "waiting". The server will broadcast a "game_status_changed" event next, which updates the status to "active" for all clients.
 
 **Server Broadcasts Game Status Change**:
 ```json

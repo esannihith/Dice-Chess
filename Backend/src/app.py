@@ -4,6 +4,7 @@ import uuid
 import chess
 import socketio
 import uvicorn
+import time
 from .RedisGameStore import RedisGameStore
 
 # Create Socket.IO server
@@ -19,16 +20,20 @@ game_store = RedisGameStore()
 socket_app = socketio.ASGIApp(sio, app)
 
 # Pydantic models for request validation
+class CreateGameRequest(BaseModel):
+    playerName: str
+
 class JoinGameRequest(BaseModel):
     gameId: str
     opponentJoinId: str
+    playerName: str
 
 @app.get("/")
 def hello():
     return {"message": "Backend is running!"}
 
 @app.post("/api/game/new")
-def new_game():
+def new_game(request: CreateGameRequest):
     """
     Creator flow: Create a new game
     Returns: gameId, playerId (creatorId), fen, creatorColor, opponentJoinId
@@ -38,12 +43,13 @@ def new_game():
         game_id = str(uuid.uuid4())
         creator_id = str(uuid.uuid4())  # This will be playerId for creator
         opponent_join_id = str(uuid.uuid4())
+        creator_name = request.playerName
         
         # Create initial chess board
         board = chess.Board()
         
         # Create game in Redis store
-        success = game_store.create_game(game_id, creator_id, opponent_join_id)
+        success = game_store.create_game(game_id, creator_id, creator_name, opponent_join_id)
         
         if not success:
             raise HTTPException(status_code=500, detail="Failed to create game")
@@ -70,12 +76,13 @@ def join_game_http(request: JoinGameRequest):
     try:
         game_id = request.gameId
         opponent_join_id = request.opponentJoinId
+        opponent_name = request.playerName
         
         # Generate new playerId for opponent
         opponent_id = str(uuid.uuid4())
         
         # Attempt to join the game using the RedisGameStore
-        game_data = game_store.join_game(opponent_join_id, opponent_id)
+        game_data = game_store.join_game(opponent_join_id, opponent_id, opponent_name)
         
         if not game_data:
             raise HTTPException(
@@ -143,9 +150,11 @@ async def join_game(sid, data):
         # Add client to game room
         await sio.enter_room(sid, game_id)
         
-        # Determine player role
+        # Determine player role and names
         player_role = "creator" if player_id == game_data.get("creatorId") else "opponent"
         player_color = "white" if player_role == "creator" else "black"
+        player_name = game_data.get("creatorName") if player_role == "creator" else game_data.get("opponentName")
+        opponent_name = game_data.get("opponentName") if player_role == "creator" else game_data.get("creatorName")
         
         # Confirm room joined
         await sio.emit('room_joined', {
@@ -153,6 +162,8 @@ async def join_game(sid, data):
             'playerId': player_id,
             'playerRole': player_role,
             'playerColor': player_color,
+            'playerName': player_name,
+            'opponentName': opponent_name,
             'gameData': game_data
         }, room=sid)
         
@@ -160,12 +171,13 @@ async def join_game(sid, data):
         await sio.emit('player_joined', {
             'playerId': player_id,
             'playerRole': player_role,
+            'playerName': player_name,
             'gameId': game_id,
             'gameStatus': game_data["status"]
         }, room=game_id, skip_sid=sid)
         
         # If opponent just joined, broadcast game status change to active
-        if player_role == "opponent" and game_data["status"] == "active":
+        if player_role == "opponent" and game_data["status"] == "waiting":
             await sio.emit('game_status_changed', {
                 'status': 'active',
                 'message': 'Both players connected. Game is now active!'
