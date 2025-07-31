@@ -1,5 +1,6 @@
 import redis
 import json
+import time
 from typing import Optional, Dict, Any
 
 class RedisGameStore:
@@ -15,7 +16,7 @@ class RedisGameStore:
             "status": "waiting",
             "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
             "activePlayer": "white",
-            "createdAt": "timestamp"
+            "createdAt": int(time.time())
         }
         
         # Store game data with 24h expiration
