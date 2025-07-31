@@ -1,8 +1,9 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faPlus, faSignInAlt } from '@fortawesome/free-solid-svg-icons'
 import DiceChessImg from '../../assets/Dice-Chess.png'
+import { Link } from 'react-router-dom'
 
-function RoomActions() {
+function RoomActions({onJoin}) {
   return (
     <div
       className="w-full flex flex-col items-center justify-center text-amber-100 relative py-16 min-h-screen"
@@ -48,12 +49,13 @@ function RoomActions() {
               <h3 className="text-xl font-bold mb-3">Create Game</h3>
               <p className="text-sm opacity-80 mb-4">Start a new dice chess match</p>
             </div>
-            <button
+            <Link
+              to="/game"
               className="bg-amber-700 hover:bg-amber-600 text-white px-6 py-3 rounded-md font-medium transition-colors duration-200 w-full"
-              onClick={() => {}}
+              
             >
               Create New Game
-            </button>
+            </Link>
           </div>
           {/* Join Game Card */}
           <div
@@ -86,7 +88,7 @@ function RoomActions() {
             </div>
             <button
               className="bg-amber-700 hover:bg-amber-600 text-white px-6 py-3 rounded-md font-medium transition-colors duration-200 w-full"
-              onClick={() => {}}
+              onClick={onJoin}
             >
               Join Game
             </button>
