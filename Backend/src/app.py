@@ -183,5 +183,165 @@ async def join_game(sid, data):
 async def disconnect(sid):
     print(f"Client {sid} disconnected")
 
+@sio.event
+async def make_move(sid, data):
+    """
+    Handle player moves in real-time
+    Expects: gameId, playerId, move (in UCI format like 'e2e4')
+    """
+    try:
+        game_id = data.get('gameId')
+        player_id = data.get('playerId')
+        move = data.get('move')
+        
+        if not all([game_id, player_id, move]):
+            await sio.emit('move_error', {
+                'message': 'Missing required data: gameId, playerId, or move',
+                'gameId': game_id
+            }, room=sid)
+            return
+        
+        # Get current game state
+        game_data = game_store.get_game(game_id)
+        if not game_data:
+            await sio.emit('move_error', {
+                'message': 'Game not found',
+                'gameId': game_id
+            }, room=sid)
+            return
+        
+        # Verify player is part of this game
+        if player_id not in [game_data.get("creatorId"), game_data.get("opponentId")]:
+            await sio.emit('move_error', {
+                'message': 'Player not authorized for this game',
+                'gameId': game_id
+            }, room=sid)
+            return
+        
+        # Check if game is active
+        if game_data.get("status") != "active":
+            await sio.emit('move_error', {
+                'message': 'Game is not active',
+                'gameId': game_id
+            }, room=sid)
+            return
+        
+        # Determine player color
+        player_color = "white" if player_id == game_data.get("creatorId") else "black"
+        
+        # Check if it's the player's turn
+        if game_data.get("activePlayer") != player_color:
+            await sio.emit('move_error', {
+                'message': 'Not your turn',
+                'gameId': game_id
+            }, room=sid)
+            return
+        
+        # Create chess board from current FEN
+        try:
+            board = chess.Board(game_data.get("fen"))
+        except ValueError as e:
+            await sio.emit('move_error', {
+                'message': f'Invalid board state: {str(e)}',
+                'gameId': game_id
+            }, room=sid)
+            return
+        
+        # Validate and apply the move
+        try:
+            chess_move = chess.Move.from_uci(move)
+            if chess_move not in board.legal_moves:
+                await sio.emit('move_error', {
+                    'message': f'Invalid move: {move}',
+                    'gameId': game_id
+                }, room=sid)
+                return
+            
+            # Apply the move
+            board.push(chess_move)
+            
+        except ValueError as e:
+            await sio.emit('move_error', {
+                'message': f'Invalid move format: {move}',
+                'gameId': game_id
+            }, room=sid)
+            return
+        
+        # Determine next active player
+        next_active_player = "black" if player_color == "white" else "white"
+        
+        # Check game end conditions
+        is_check = board.is_check()
+        is_game_over = board.is_game_over()
+        winner = None
+        end_reason = None
+        game_status = "active"
+        
+        if is_game_over:
+            game_status = "completed"
+            if board.is_checkmate():
+                winner = player_color
+                end_reason = "checkmate"
+            elif board.is_stalemate():
+                end_reason = "stalemate"
+            elif board.is_insufficient_material():
+                end_reason = "insufficient_material"
+            elif board.is_seventyfive_moves():
+                end_reason = "seventyfive_moves"
+            elif board.is_fivefold_repetition():
+                end_reason = "fivefold_repetition"
+            else:
+                end_reason = "draw"
+        
+        # Update game state in Redis
+        updates = {
+            "fen": board.fen(),
+            "activePlayer": next_active_player,
+            "status": game_status,
+            "lastMoveAt": int(time.time())
+        }
+        
+        # Add move to history if it exists
+        move_history = game_data.get("moveHistory", [])
+        move_history.append(move)
+        updates["moveHistory"] = move_history
+        
+        success = game_store.update_game(game_id, updates)
+        if not success:
+            await sio.emit('move_error', {
+                'message': 'Failed to update game state',
+                'gameId': game_id
+            }, room=sid)
+            return
+        
+        # Prepare broadcast data
+        broadcast_data = {
+            "gameId": game_id,
+            "fen": board.fen(),
+            "move": move,
+            "playerId": player_id,
+            "color": player_color,
+            "activePlayer": next_active_player,
+            "isCheck": is_check,
+            "isGameOver": is_game_over,
+            "winner": winner,
+            "gameStatus": game_status
+        }
+        
+        if end_reason:
+            broadcast_data["endReason"] = end_reason
+        
+        # Broadcast the move to all players in the game room
+        await sio.emit('board_updated', broadcast_data, room=game_id)
+        
+        print(f"Move {move} by {player_color} player in game {game_id}")
+        
+    except Exception as e:
+        print(f"Error in make_move: {e}")
+        await sio.emit('move_error', {
+            'message': 'Internal server error',
+            'gameId': data.get('gameId')
+        }, room=sid)
+
 if __name__ == "__main__":
     uvicorn.run(socket_app, host="0.0.0.0", port=5000)

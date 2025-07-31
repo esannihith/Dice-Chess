@@ -19,7 +19,8 @@ class RedisGameStore:
             "status": "waiting",
             "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
             "activePlayer": "white",
-            "createdAt": int(time.time())
+            "createdAt": int(time.time()),
+            "moveHistory": []
         }
         
         try:
