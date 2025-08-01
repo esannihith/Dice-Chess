@@ -1,12 +1,12 @@
 from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware # Import the middleware
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import uuid
 import chess
 import socketio
 import uvicorn
 import time
 from RedisGameStore import RedisGameStore
+from nanoid import generate
 
 # Create Socket.IO server
 sio = socketio.AsyncServer(cors_allowed_origins="*")
@@ -17,10 +17,10 @@ app = FastAPI()
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # Allow your frontend origin
+    allow_origins=["http://localhost:5173"],
     allow_credentials=True,
-    allow_methods=["*"],  # Allow all methods
-    allow_headers=["*"],  # Allow all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Initialize Redis game store
@@ -28,6 +28,13 @@ game_store = RedisGameStore()
 
 # Mount Socket.IO app
 socket_app = socketio.ASGIApp(sio, app)
+
+# Helper: Generate a unique short ID with Redis collision check
+def get_unique_id(redis_client, prefix, length=6, alphabet='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'):
+    while True:
+        new_id = generate(alphabet, length)
+        if not redis_client.exists(f"{prefix}:{new_id}"):
+            return new_id
 
 # Pydantic models for request validation
 class CreateGameRequest(BaseModel):
@@ -49,30 +56,30 @@ def new_game(request: CreateGameRequest):
     Returns: gameId, playerId (creatorId), fen, creatorColor, opponentJoinId
     """
     try:
-        # Generate unique IDs
-        game_id = str(uuid.uuid4())
-        creator_id = str(uuid.uuid4())  # This will be playerId for creator
-        opponent_join_id = str(uuid.uuid4())
+        # Generate unique short IDs using NanoID with Redis collision check
+        game_id = get_unique_id(game_store.redis_client, "game")
+        creator_id = get_unique_id(game_store.redis_client, "player")
+        opponent_join_id = get_unique_id(game_store.redis_client, "join")
         creator_name = request.playerName
-        
+
         # Create initial chess board
         board = chess.Board()
-        
+
         # Create game in Redis store
         success = game_store.create_game(game_id, creator_id, creator_name, opponent_join_id)
-        
+
         if not success:
             raise HTTPException(status_code=500, detail="Failed to create game")
-        
+
         return {
             "gameId": game_id,
             "fen": board.fen(),
             "creatorColor": "white",
-            "playerId": creator_id,  # Creator's playerId
+            "playerId": creator_id,
             "opponentJoinId": opponent_join_id,
             "status": "waiting"
         }
-    
+
     except Exception as e:
         print(f"Error creating game: {e}")
         raise HTTPException(status_code=500, detail="Failed to create game")
