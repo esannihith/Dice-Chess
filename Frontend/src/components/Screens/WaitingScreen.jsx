@@ -1,8 +1,8 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faDice, faClock, faGamepad, faLightbulb, faTimes, faCopy } from '@fortawesome/free-solid-svg-icons';
-import { useGameStore } from '../../store/gameStore';
+import { faDice, faLightbulb, faTimes, faCopy } from '@fortawesome/free-solid-svg-icons';
+import { useGameStore } from '../../store';
 
 function WaitingScreen() {
   const navigate = useNavigate();
@@ -96,7 +96,12 @@ function WaitingScreen() {
           <span className="text-xl font-bold">Dice Chess</span>
         </div>
         <div className="flex items-center gap-4">
-          <span className="text-white/80 text-sm">Game ID: {gameId?.slice(0, 8)}...</span>
+          <div className="text-white/80 text-sm">
+            <div>Game ID: {gameId?.slice(0, 8)}...</div>
+            {playerRole === 'creator' && opponentJoinId && (
+              <div>Join ID: {opponentJoinId?.slice(0, 8)}...</div>
+            )}
+          </div>
           <button
             onClick={handleLeaveGame}
             className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200 flex items-center gap-2"
@@ -179,20 +184,6 @@ function WaitingScreen() {
           </div>
         </div>
 
-        {/* Game info cards */}
-        <div className="grid grid-cols-2 gap-4 mb-6">
-          <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg p-4 text-center">
-            <FontAwesomeIcon icon={faClock} className="text-yellow-400 text-lg mb-2" />
-            <div className="text-white font-medium text-sm mb-1">Time Control</div>
-            <div className="text-white/70 text-xs">10 min + 5 sec</div>
-          </div>
-          <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg p-4 text-center">
-            <FontAwesomeIcon icon={faGamepad} className="text-yellow-400 text-lg mb-2" />
-            <div className="text-white font-medium text-sm mb-1">Game Mode</div>
-            <div className="text-white/70 text-xs">Dice Chess</div>
-          </div>
-        </div>
-
         {/* Pro tip */}
         <div className="bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-500/30 rounded-lg p-4 mb-6">
           <div className="flex items-center gap-2 mb-2">
@@ -212,26 +203,20 @@ function WaitingScreen() {
               className="bg-white/10 hover:bg-white/20 border border-white/20 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200 flex items-center gap-2 mx-auto"
             >
               <FontAwesomeIcon icon={faCopy} />
-              Copy Game Info
+              Copy Game & Join IDs
             </button>
-            <p className="text-white/60 text-xs mt-2">Share with your opponent to join</p>
+            <p className="text-white/60 text-xs mt-2">Share both IDs with your opponent to join</p>
           </div>
         )}
 
         {/* Connection status */}
-        {connectionError && (
+        {(connectionError || error) && (
           <div className="mt-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg">
-            <p className="text-red-300 text-xs text-center">{connectionError}</p>
+            <p className="text-red-300 text-xs text-center">{connectionError || error}</p>
           </div>
         )}
 
-        {error && (
-          <div className="mt-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg">
-            <p className="text-red-300 text-xs text-center">{error}</p>
-          </div>
-        )}
-
-        {!isConnected && !connectionError && (
+        {!isConnected && !connectionError && !error && (
           <div className="mt-4 p-3 bg-blue-500/20 border border-blue-500/30 rounded-lg">
             <p className="text-blue-300 text-xs text-center">Connecting to game...</p>
           </div>

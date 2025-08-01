@@ -6,8 +6,8 @@
 import { create } from 'zustand';
 import { devtools, subscribeWithSelector } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
-import apiService from '../services/apiService.js';
-import socketService from '../services/socketService.js';
+import apiService from '../../services/apiService.js';
+import socketService from '../../services/socketService.js';
 
 // Initial game state
 const initialGameState = {

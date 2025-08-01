@@ -1,17 +1,27 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware # Import the middleware
 from pydantic import BaseModel
 import uuid
 import chess
 import socketio
 import uvicorn
 import time
-from .RedisGameStore import RedisGameStore
+from RedisGameStore import RedisGameStore
 
 # Create Socket.IO server
 sio = socketio.AsyncServer(cors_allowed_origins="*")
 
 # Create FastAPI app
 app = FastAPI()
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],  # Allow your frontend origin
+    allow_credentials=True,
+    allow_methods=["*"],  # Allow all methods
+    allow_headers=["*"],  # Allow all headers
+)
 
 # Initialize Redis game store
 game_store = RedisGameStore()

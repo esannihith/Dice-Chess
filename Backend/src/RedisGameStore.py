@@ -1,11 +1,22 @@
 import redis
 import json
 import time
+import os
 from typing import Optional, Dict, Any
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 class RedisGameStore:
-    def __init__(self, redis_url: str = "redis://localhost:6379"):
-        self.redis_client = redis.from_url(redis_url, decode_responses=True)
+    def __init__(self):
+        self.redis_client = redis.Redis(
+            host=os.getenv('REDIS_HOST'),
+            port=int(os.getenv('REDIS_PORT')),
+            decode_responses=True,
+            username=os.getenv('REDIS_USERNAME'),
+            password=os.getenv('REDIS_PASSWORD')
+        )
     
     def create_game(self, game_id: str, creator_id: str, creator_name: str, opponent_join_id: str) -> bool:
         """
