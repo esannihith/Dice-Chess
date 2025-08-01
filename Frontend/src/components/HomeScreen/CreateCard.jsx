@@ -1,9 +1,34 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Dices, Crown } from 'lucide-react';
+import { useGameStore } from '../../store/gameStore';
 
 // Card for creating a new game
 function CreateCard() {
   const [playerName, setPlayerName] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const navigate = useNavigate();
+  const { createGame } = useGameStore();
+
+  const handleCreateGame = async () => {
+    if (!playerName.trim()) {
+      setError('Please enter your name');
+      return;
+    }
+
+    setIsLoading(true);
+    setError('');
+
+    try {
+      await createGame(playerName.trim());
+      navigate('/waiting');
+    } catch (err) {
+      setError(err.message || 'Failed to create game');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     // Added flex flex-col to allow content to grow and make the card fill the height
@@ -26,11 +51,20 @@ function CreateCard() {
           placeholder="Enter your name"
           value={playerName}
           onChange={(e) => setPlayerName(e.target.value)}
+          onKeyPress={(e) => e.key === 'Enter' && handleCreateGame()}
+          disabled={isLoading}
           className="bg-white/10 border border-white/20 rounded-lg p-3 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-yellow-500"
         />
-        <button className="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-bold px-4 rounded-lg transition-colors duration-300 flex items-center justify-center gap-2 h-[92px]">
+        {error && (
+          <div className="text-red-400 text-sm text-center">{error}</div>
+        )}
+        <button 
+          onClick={handleCreateGame}
+          disabled={isLoading || !playerName.trim()}
+          className="w-full bg-yellow-500 hover:bg-yellow-600 disabled:bg-yellow-500/50 disabled:cursor-not-allowed text-black font-bold px-4 rounded-lg transition-colors duration-300 flex items-center justify-center gap-2 h-[92px]"
+        >
           <Dices className="w-5 h-5" />
-          Create New Game
+          {isLoading ? 'Creating...' : 'Create New Game'}
         </button>
       </div>
     </div>

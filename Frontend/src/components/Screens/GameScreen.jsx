@@ -1,11 +1,15 @@
 import React from 'react'
+import { useGameStore } from '../../store/gameStore'
 import { ChessBoard } from '../GameRoom'
 
 function GameScreen() {
-  const player ={
-    name: 'Player 1',
-    color: 'white'
-  }
+  const { playerColor, playerName } = useGameStore();
+  
+  const player = {
+    name: playerName || 'Player',
+    color: playerColor || 'white'
+  };
+  
   return (
     <ChessBoard player={player} />
   )
